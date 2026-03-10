@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/zyrthi-io/zyrthi-build/internal/config"
 )
 
 var (
@@ -19,7 +21,7 @@ func main() {
 	flag.Parse()
 
 	// 读取配置
-	cfg, err := loadConfig(*flagConfig)
+	cfg, err := config.Load(*flagConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "错误: 无法读取配置文件: %v\n", err)
 		os.Exit(1)
@@ -47,7 +49,7 @@ func main() {
 }
 
 // checkToolchain 检查工具链是否存在
-func checkToolchain(cfg *Config) error {
+func checkToolchain(cfg *config.Config) error {
 	prefix := cfg.Compiler.Prefix
 	if prefix == "" {
 		return fmt.Errorf("未配置编译器前缀")
@@ -65,7 +67,7 @@ func checkToolchain(cfg *Config) error {
 }
 
 // build 执行编译
-func build(cfg *Config) error {
+func build(cfg *config.Config) error {
 	buildDir := "build"
 
 	// 创建 build 目录
@@ -87,7 +89,7 @@ func build(cfg *Config) error {
 
 	// 编译每个源文件
 	objects := make([]string, 0, len(sources))
-	compileCommands := make([]CompileCommand, 0, len(sources))
+	compileCommands := make([]config.CompileCommand, 0, len(sources))
 
 	for _, src := range sources {
 		obj := filepath.Join(buildDir, strings.TrimSuffix(filepath.Base(src), filepath.Ext(src))+".o")
@@ -95,7 +97,7 @@ func build(cfg *Config) error {
 
 		// 编译命令
 		cmd, cmdStr := buildCompileCommand(cfg, src, obj)
-		compileCommands = append(compileCommands, CompileCommand{
+		compileCommands = append(compileCommands, config.CompileCommand{
 			Directory: ".",
 			Command:   cmdStr,
 			File:      src,
@@ -111,7 +113,7 @@ func build(cfg *Config) error {
 	}
 
 	// 生成 compile_commands.json
-	if err := writeCompileCommands(compileCommands); err != nil {
+	if err := config.WriteCompileCommands(compileCommands); err != nil {
 		fmt.Fprintf(os.Stderr, "警告: 无法生成 compile_commands.json: %v\n", err)
 	}
 
@@ -134,7 +136,7 @@ func build(cfg *Config) error {
 }
 
 // collectSources 收集源文件
-func collectSources(cfg *Config) ([]string, error) {
+func collectSources(cfg *config.Config) ([]string, error) {
 	sources := make([]string, 0)
 
 	for _, dir := range cfg.Project.Sources {
@@ -160,7 +162,7 @@ func collectSources(cfg *Config) ([]string, error) {
 }
 
 // buildCompileCommand 构建编译命令
-func buildCompileCommand(cfg *Config, src, obj string) (*exec.Cmd, string) {
+func buildCompileCommand(cfg *config.Config, src, obj string) (*exec.Cmd, string) {
 	args := []string{}
 
 	// 编译选项
@@ -189,7 +191,7 @@ func buildCompileCommand(cfg *Config, src, obj string) (*exec.Cmd, string) {
 }
 
 // link 链接
-func link(cfg *Config, objects []string, output string) error {
+func link(cfg *config.Config, objects []string, output string) error {
 	args := []string{}
 
 	// 链接选项
@@ -213,7 +215,7 @@ func link(cfg *Config, objects []string, output string) error {
 }
 
 // objcopy 生成 bin 文件
-func objcopy(cfg *Config, elf, bin string) error {
+func objcopy(cfg *config.Config, elf, bin string) error {
 	cmd := exec.Command(cfg.Compiler.Prefix+"objcopy", "-O", "binary", elf, bin)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -221,7 +223,7 @@ func objcopy(cfg *Config, elf, bin string) error {
 }
 
 // showSize 显示大小
-func showSize(cfg *Config, elf string) {
+func showSize(cfg *config.Config, elf string) {
 	cmd := exec.Command(cfg.Compiler.Prefix+"size", elf)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -229,7 +231,7 @@ func showSize(cfg *Config, elf string) {
 }
 
 // cleanBuild 清理编译产物
-func cleanBuild(cfg *Config) {
+func cleanBuild(cfg *config.Config) {
 	buildDir := "build"
 	if _, err := os.Stat(buildDir); err == nil {
 		os.RemoveAll(buildDir)

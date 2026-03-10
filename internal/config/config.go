@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"encoding/json"
@@ -10,11 +10,11 @@ import (
 
 // Config zyrthi.yaml 配置结构
 type Config struct {
-	Platform string          `yaml:"platform"`
-	Chip     string          `yaml:"chip"`
-	Compiler CompilerConfig  `yaml:"compiler"`
-	Flash    FlashConfig     `yaml:"flash"`
-	Project  ProjectConfig   `yaml:"project"`
+	Platform string         `yaml:"platform"`
+	Chip     string         `yaml:"chip"`
+	Compiler CompilerConfig `yaml:"compiler"`
+	Flash    FlashConfig    `yaml:"flash"`
+	Project  ProjectConfig  `yaml:"project"`
 }
 
 // CompilerConfig 编译器配置
@@ -27,10 +27,10 @@ type CompilerConfig struct {
 
 // FlashConfig 烧录配置
 type FlashConfig struct {
-	Plugin     string `yaml:"plugin"`
-	EntryAddr  string `yaml:"entry_addr"`
-	FlashSize  string `yaml:"flash_size"`
-	DefaultBaud int   `yaml:"default_baud"`
+	Plugin      string `yaml:"plugin"`
+	EntryAddr   string `yaml:"entry_addr"`
+	FlashSize   string `yaml:"flash_size"`
+	DefaultBaud int    `yaml:"default_baud"`
 }
 
 // ProjectConfig 项目配置
@@ -46,8 +46,8 @@ type CompileCommand struct {
 	File      string `json:"file"`
 }
 
-// loadConfig 从 zyrthi.yaml 加载配置
-func loadConfig(path string) (*Config, error) {
+// Load 从 zyrthi.yaml 加载配置
+func Load(path string) (*Config, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -74,8 +74,8 @@ func loadConfig(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-// writeCompileCommands 生成 compile_commands.json
-func writeCompileCommands(commands []CompileCommand) error {
+// WriteCompileCommands 生成 compile_commands.json
+func WriteCompileCommands(commands []CompileCommand) error {
 	cwd, _ := os.Getwd()
 	for i := range commands {
 		commands[i].Directory = cwd

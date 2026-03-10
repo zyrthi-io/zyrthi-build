@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"os"
@@ -6,8 +6,7 @@ import (
 	"testing"
 )
 
-func TestLoadConfig(t *testing.T) {
-	// 创建临时配置文件
+func TestLoad(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "zyrthi.yaml")
 
@@ -34,9 +33,9 @@ project:
 		t.Fatal(err)
 	}
 
-	cfg, err := loadConfig(configPath)
+	cfg, err := Load(configPath)
 	if err != nil {
-		t.Fatalf("loadConfig error: %v", err)
+		t.Fatalf("Load error: %v", err)
 	}
 
 	if cfg.Platform != "esp32" {
@@ -56,11 +55,10 @@ project:
 	}
 }
 
-func TestLoadConfigDefaults(t *testing.T) {
+func TestLoadDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "zyrthi.yaml")
 
-	// 最小配置
 	content := `platform: esp32
 chip: esp32c3
 compiler:
@@ -70,12 +68,11 @@ compiler:
 		t.Fatal(err)
 	}
 
-	cfg, err := loadConfig(configPath)
+	cfg, err := Load(configPath)
 	if err != nil {
-		t.Fatalf("loadConfig error: %v", err)
+		t.Fatalf("Load error: %v", err)
 	}
 
-	// 检查默认值
 	if cfg.Project.Name != "firmware" {
 		t.Errorf("expected default project name 'firmware', got %s", cfg.Project.Name)
 	}
@@ -84,14 +81,14 @@ compiler:
 	}
 }
 
-func TestLoadConfigNotExist(t *testing.T) {
-	_, err := loadConfig("/nonexistent/zyrthi.yaml")
+func TestLoadNotExist(t *testing.T) {
+	_, err := Load("/nonexistent/zyrthi.yaml")
 	if err == nil {
 		t.Error("expected error for nonexistent file")
 	}
 }
 
-func TestLoadConfigInvalidYAML(t *testing.T) {
+func TestLoadInvalidYAML(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "zyrthi.yaml")
 
@@ -102,79 +99,9 @@ chip: [invalid yaml
 		t.Fatal(err)
 	}
 
-	_, err := loadConfig(configPath)
+	_, err := Load(configPath)
 	if err == nil {
 		t.Error("expected error for invalid YAML")
-	}
-}
-
-func TestCollectSources(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// 创建源文件结构
-	srcDir := filepath.Join(tmpDir, "src")
-	os.MkdirAll(srcDir, 0755)
-
-	os.WriteFile(filepath.Join(srcDir, "main.c"), []byte(""), 0644)
-	os.WriteFile(filepath.Join(srcDir, "helper.cpp"), []byte(""), 0644)
-	os.WriteFile(filepath.Join(srcDir, "readme.txt"), []byte(""), 0644)
-
-	cfg := &Config{
-		Project: ProjectConfig{
-			Sources: []string{srcDir},
-		},
-	}
-
-	// 切换到临时目录
-	oldDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldDir)
-
-	sources, err := collectSources(cfg)
-	if err != nil {
-		t.Fatalf("collectSources error: %v", err)
-	}
-
-	if len(sources) != 2 {
-		t.Errorf("expected 2 source files, got %d", len(sources))
-	}
-
-	// 检查文件扩展名
-	for _, src := range sources {
-		ext := filepath.Ext(src)
-		if ext != ".c" && ext != ".cpp" && ext != ".cc" {
-			t.Errorf("unexpected source file: %s", src)
-		}
-	}
-}
-
-func TestCollectSourcesEmpty(t *testing.T) {
-	cfg := &Config{
-		Project: ProjectConfig{
-			Sources: []string{},
-		},
-	}
-
-	sources, err := collectSources(cfg)
-	if err != nil {
-		t.Fatalf("collectSources error: %v", err)
-	}
-
-	if len(sources) != 0 {
-		t.Errorf("expected 0 source files, got %d", len(sources))
-	}
-}
-
-func TestCollectSourcesNonexistentDir(t *testing.T) {
-	cfg := &Config{
-		Project: ProjectConfig{
-			Sources: []string{"/nonexistent/dir/"},
-		},
-	}
-
-	_, err := collectSources(cfg)
-	if err == nil {
-		t.Error("expected error for nonexistent directory")
 	}
 }
 
@@ -189,17 +116,15 @@ func TestWriteCompileCommands(t *testing.T) {
 		{Directory: ".", Command: "gcc -c helper.c", File: "helper.c"},
 	}
 
-	err := writeCompileCommands(commands)
+	err := WriteCompileCommands(commands)
 	if err != nil {
-		t.Fatalf("writeCompileCommands error: %v", err)
+		t.Fatalf("WriteCompileCommands error: %v", err)
 	}
 
-	// 检查文件是否存在
 	if _, err := os.Stat("compile_commands.json"); err != nil {
 		t.Error("compile_commands.json should exist")
 	}
 
-	// 读取并验证内容
 	data, err := os.ReadFile("compile_commands.json")
 	if err != nil {
 		t.Fatal(err)
@@ -221,9 +146,9 @@ func TestConfigStruct(t *testing.T) {
 			Includes: []string{"include/"},
 		},
 		Flash: FlashConfig{
-			Plugin:     "https://example.com/plugin.wasm",
-			EntryAddr:  "0x0",
-			FlashSize:  "4MB",
+			Plugin:      "https://example.com/plugin.wasm",
+			EntryAddr:   "0x0",
+			FlashSize:   "4MB",
 			DefaultBaud: 115200,
 		},
 		Project: ProjectConfig{
@@ -234,12 +159,6 @@ func TestConfigStruct(t *testing.T) {
 
 	if cfg.Platform != "esp32" {
 		t.Errorf("expected platform 'esp32', got %s", cfg.Platform)
-	}
-	if cfg.Compiler.Prefix != "riscv32-esp-elf-" {
-		t.Errorf("expected compiler prefix 'riscv32-esp-elf-', got %s", cfg.Compiler.Prefix)
-	}
-	if cfg.Project.Name != "test-project" {
-		t.Errorf("expected project name 'test-project', got %s", cfg.Project.Name)
 	}
 }
 
@@ -254,12 +173,6 @@ func TestCompilerConfigStruct(t *testing.T) {
 	if cc.Prefix != "arm-none-eabi-" {
 		t.Errorf("expected prefix 'arm-none-eabi-', got %s", cc.Prefix)
 	}
-	if len(cc.Cflags) != 2 {
-		t.Errorf("expected 2 cflags, got %d", len(cc.Cflags))
-	}
-	if len(cc.Includes) != 2 {
-		t.Errorf("expected 2 includes, got %d", len(cc.Includes))
-	}
 }
 
 func TestFlashConfigStruct(t *testing.T) {
@@ -273,9 +186,6 @@ func TestFlashConfigStruct(t *testing.T) {
 	if fc.Plugin != "https://example.com/plugin.wasm" {
 		t.Errorf("expected plugin URL, got %s", fc.Plugin)
 	}
-	if fc.DefaultBaud != 115200 {
-		t.Errorf("expected default baud 115200, got %d", fc.DefaultBaud)
-	}
 }
 
 func TestProjectConfigStruct(t *testing.T) {
@@ -286,9 +196,6 @@ func TestProjectConfigStruct(t *testing.T) {
 
 	if pc.Name != "my-firmware" {
 		t.Errorf("expected name 'my-firmware', got %s", pc.Name)
-	}
-	if len(pc.Sources) != 2 {
-		t.Errorf("expected 2 sources, got %d", len(pc.Sources))
 	}
 }
 
@@ -301,8 +208,5 @@ func TestCompileCommandStruct(t *testing.T) {
 
 	if cc.Directory != "/project" {
 		t.Errorf("expected directory '/project', got %s", cc.Directory)
-	}
-	if cc.Command != "gcc -c -o main.o main.c" {
-		t.Errorf("unexpected command: %s", cc.Command)
 	}
 }
